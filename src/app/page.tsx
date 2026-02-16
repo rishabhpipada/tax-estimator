@@ -63,6 +63,11 @@ export default function Home() {
       deductionChoice,
       deductionChoice === 'itemized' ? itemizedDeductions : undefined,
       dependents,
+      w2Data.stateName ? {
+        stateCode: w2Data.stateName,
+        stateWages: w2Data.stateWages,
+        stateWithheld: w2Data.stateWithheld,
+      } : undefined,
     );
     setTaxResult(result);
     setStep(6);

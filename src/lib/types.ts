@@ -84,6 +84,27 @@ export interface Uploaded1099 {
   rawText: string;
 }
 
+export interface StateTaxBracketBreakdown {
+  rate: number;
+  taxableInBracket: number;
+  taxForBracket: number;
+}
+
+export interface StateTaxResult {
+  stateCode: string;
+  stateName: string;
+  taxType: 'none' | 'flat' | 'progressive';
+  stateWages: number;
+  stateAGI: number;
+  standardDeduction: number;
+  stateTaxableIncome: number;
+  taxRate?: number; // for flat-rate states
+  bracketBreakdown?: StateTaxBracketBreakdown[]; // for progressive states
+  stateTax: number;
+  stateWithheld: number;
+  stateRefundOrOwed: number; // positive = refund, negative = owed
+}
+
 export interface TaxResult {
   // Income
   grossIncome: number;
@@ -124,4 +145,7 @@ export interface TaxResult {
   totalTax: number;
   federalWithheld: number;
   refundOrOwed: number; // positive = refund, negative = owed
+
+  // State tax
+  stateTax?: StateTaxResult;
 }

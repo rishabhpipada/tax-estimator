@@ -9,6 +9,7 @@ import {
   CreditsBreakdown,
   AMTResult,
 } from './types';
+import { calculateStateTax } from './stateTaxCalculator';
 import {
   STANDARD_DEDUCTIONS,
   TAX_BRACKETS,
@@ -254,6 +255,7 @@ export function calculateTax(
   deductionChoice: DeductionChoice = 'standard',
   itemizedDeductions?: ItemizedDeductions,
   dependents: DependentInfo = DEFAULT_DEPENDENTS,
+  stateData?: { stateCode: string; stateWages: number; stateWithheld: number },
 ): TaxResult {
   // 1. Calculate AGI
   const agi = calculateAGI(w2Wages, otherIncome);
@@ -305,6 +307,11 @@ export function calculateTax(
   // Final tax is the greater of regular tax or AMT
   const totalTax = round2(amtTriggered ? amtResult.amtTax : taxAfterCredits);
 
+  // 8. State tax (if state data provided)
+  const stateTaxResult = stateData
+    ? calculateStateTax(stateData.stateCode, stateData.stateWages, stateData.stateWithheld, agi) ?? undefined
+    : undefined;
+
   return {
     grossIncome: agi,
     w2Wages,
@@ -332,5 +339,6 @@ export function calculateTax(
     totalTax,
     federalWithheld,
     refundOrOwed: round2(federalWithheld - totalTax),
+    stateTax: stateTaxResult,
   };
 }

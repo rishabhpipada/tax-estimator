@@ -174,6 +174,132 @@ export default function TaxSummary({ result, onBack, onStartOver }: TaxSummaryPr
         />
       </div>
 
+      {/* State Tax Section */}
+      {result.stateTax && result.stateTax.taxType === 'none' && (
+        <>
+          <SectionHeader title={`State Tax — ${result.stateTax.stateName}`} />
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 text-center">
+            <p className="text-green-700 font-medium">
+              {result.stateTax.stateName} has no state income tax.
+            </p>
+            {result.stateTax.stateWithheld > 0 && (
+              <p className="text-sm text-green-600 mt-1">
+                State withholding of {formatCurrency(result.stateTax.stateWithheld)} should be refunded.
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
+      {result.stateTax && result.stateTax.taxType === 'flat' && (
+        <>
+          <SectionHeader title={`State Tax — ${result.stateTax.stateName}`} />
+          <div className="bg-white rounded-xl border divide-y mb-4">
+            <Row label="State AGI" value={formatCurrency(result.stateTax.stateAGI)} />
+            {result.stateTax.standardDeduction > 0 && (
+              <Row label="State Standard Deduction" value={`- ${formatCurrency(result.stateTax.standardDeduction)}`} />
+            )}
+            <Row label="State Taxable Income" value={formatCurrency(result.stateTax.stateTaxableIncome)} bold />
+            <Row
+              label={`Flat Rate: ${formatPercent(result.stateTax.taxRate!)}`}
+              value={formatCurrency(result.stateTax.stateTax)}
+            />
+            <Row label="State Tax Withheld" value={formatCurrency(result.stateTax.stateWithheld)} />
+            <Row
+              label={result.stateTax.stateRefundOrOwed >= 0 ? 'State Refund' : 'State Amount Owed'}
+              value={formatCurrency(Math.abs(result.stateTax.stateRefundOrOwed))}
+              bold
+              highlight={result.stateTax.stateRefundOrOwed >= 0 ? 'green' : 'red'}
+            />
+          </div>
+        </>
+      )}
+
+      {result.stateTax && result.stateTax.taxType === 'progressive' && (
+        <>
+          <SectionHeader title={`State Tax — ${result.stateTax.stateName}`} />
+          <div className="bg-white rounded-xl border divide-y mb-4">
+            <Row label="State AGI" value={formatCurrency(result.stateTax.stateAGI)} />
+            {result.stateTax.standardDeduction > 0 && (
+              <Row label="State Standard Deduction" value={`- ${formatCurrency(result.stateTax.standardDeduction)}`} />
+            )}
+            <Row label="State Taxable Income" value={formatCurrency(result.stateTax.stateTaxableIncome)} bold />
+            <div className="px-4 py-3">
+              <div className="text-sm font-medium text-gray-500 mb-2">State Tax by Bracket</div>
+              <div className="space-y-1">
+                {result.stateTax.bracketBreakdown!.map((b, i) => (
+                  <div key={i} className="flex justify-between text-sm">
+                    <span className="text-gray-500">
+                      {formatPercent(b.rate)} on {formatCurrency(b.taxableInBracket)}
+                    </span>
+                    <span className="text-gray-700 font-mono">
+                      {formatCurrency(b.taxForBracket)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Row label="Total State Tax" value={formatCurrency(result.stateTax.stateTax)} bold />
+            <Row label="State Tax Withheld" value={formatCurrency(result.stateTax.stateWithheld)} />
+            <Row
+              label={result.stateTax.stateRefundOrOwed >= 0 ? 'State Refund' : 'State Amount Owed'}
+              value={formatCurrency(Math.abs(result.stateTax.stateRefundOrOwed))}
+              bold
+              highlight={result.stateTax.stateRefundOrOwed >= 0 ? 'green' : 'red'}
+            />
+          </div>
+        </>
+      )}
+
+      {/* Combined Totals */}
+      {result.stateTax && result.stateTax.taxType !== 'none' && (
+        <>
+          <SectionHeader title="Combined Federal + State" />
+          <div
+            className={`rounded-xl p-4 mb-4 text-center ${
+              result.refundOrOwed + result.stateTax.stateRefundOrOwed > 0
+                ? 'bg-green-50 border border-green-200'
+                : result.refundOrOwed + result.stateTax.stateRefundOrOwed < 0
+                ? 'bg-red-50 border border-red-200'
+                : 'bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <div className="flex justify-between px-2 mb-2">
+              <span className="text-sm text-gray-600">Total Tax (Federal + State)</span>
+              <span className="font-mono text-sm font-semibold text-gray-800">
+                {formatCurrency(result.totalTax + result.stateTax.stateTax)}
+              </span>
+            </div>
+            <div className="flex justify-between px-2 mb-2">
+              <span className="text-sm text-gray-600">Total Withheld</span>
+              <span className="font-mono text-sm text-gray-700">
+                {formatCurrency(result.federalWithheld + result.stateTax.stateWithheld)}
+              </span>
+            </div>
+            <div className="border-t pt-2 mt-2">
+              <div className="text-sm font-medium text-gray-500 mb-1">
+                {result.refundOrOwed + result.stateTax.stateRefundOrOwed > 0
+                  ? 'Combined Refund'
+                  : result.refundOrOwed + result.stateTax.stateRefundOrOwed < 0
+                  ? 'Combined Amount Owed'
+                  : 'Combined: Break Even'}
+              </div>
+              <div
+                className={`text-2xl font-bold ${
+                  result.refundOrOwed + result.stateTax.stateRefundOrOwed > 0
+                    ? 'text-green-700'
+                    : result.refundOrOwed + result.stateTax.stateRefundOrOwed < 0
+                    ? 'text-red-700'
+                    : 'text-gray-700'
+                }`}
+              >
+                {formatCurrency(Math.abs(result.refundOrOwed + result.stateTax.stateRefundOrOwed))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Disclaimer */}
       <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
         <p className="text-xs text-yellow-800">
