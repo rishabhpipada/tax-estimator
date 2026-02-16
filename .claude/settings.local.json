@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx:*)",
+      "WebSearch",
+      "WebFetch(domain:taxfoundation.org)",
+      "Bash(brew list:*)",
+      "Bash(curl:*)",
+      "Bash(bash)",
+      "Bash(NVM_SOURCE=\"https://github.com/nvm-sh/nvm.git\" PROFILE=/dev/null METHOD=script bash:*)",
+      "Bash(export:*)",
+      "Bash(. \"$NVM_DIR/nvm.sh\")",
+      "Bash(nvm install:*)",
+      "Bash(yes:*)",
+      "Bash(source:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(node -e:*)",
+      "Bash(npm test:*)",
+      "Bash(nvm use:*)"
+    ]
+  }
+}
