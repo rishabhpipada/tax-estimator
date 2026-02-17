@@ -146,6 +146,57 @@ Box 1 $800.00
     });
   });
 
+  describe('1099-B with proceeds/cost basis (IB-style)', () => {
+    it('computes gains from proceeds minus cost basis', () => {
+      const text = `Form 1099-B
+Proceeds From Broker
+Short-term transactions
+Proceeds $6,655,431.18
+Cost or other basis $4,807,577.93
+Long-term transactions
+Proceeds $512,300.30
+Cost or other basis $324,224.58`;
+      const result = parse1099Text(text);
+      expect(result).not.toBeNull();
+      expect(result!.formType).toBe('1099-B');
+      expect(result!.shortTermCapGains).toBe(1847853.25);
+      expect(result!.longTermCapGains).toBe(188075.72);
+    });
+
+    it('prefers direct capital gain amounts over proceeds/basis fallback', () => {
+      const text = `Form 1099-B
+Short-term capital gain $5,000.00
+Long-term capital gain $12,500.75`;
+      const result = parse1099Text(text);
+      expect(result!.shortTermCapGains).toBe(5000.00);
+      expect(result!.longTermCapGains).toBe(12500.75);
+    });
+  });
+
+  describe('1099-CONSOLIDATED with IB-style layout', () => {
+    it('extracts all fields including proceeds/basis capital gains', () => {
+      const text = `Consolidated 1099
+INTEREST INCOME
+Box 1 Interest Income $3,854.21
+1a Total ordinary dividends $52,212.79
+1b Qualified dividends $52,082.76
+Short-term transactions
+Proceeds $6,655,431.18
+Cost or other basis $4,807,577.93
+Long-term transactions
+Proceeds $512,300.30
+Cost or other basis $324,224.58`;
+      const result = parse1099Text(text);
+      expect(result).not.toBeNull();
+      expect(result!.formType).toBe('1099-CONSOLIDATED');
+      expect(result!.interest).toBe(3854.21);
+      expect(result!.ordinaryDividends).toBe(52212.79);
+      expect(result!.qualifiedDividends).toBe(52082.76);
+      expect(result!.shortTermCapGains).toBe(1847853.25);
+      expect(result!.longTermCapGains).toBe(188075.72);
+    });
+  });
+
   it('returns null for unrecognized form', () => {
     expect(parse1099Text('Some random document without form indicators')).toBeNull();
   });

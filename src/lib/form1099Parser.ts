@@ -98,16 +98,95 @@ function parse1099DIV(lines: string[]): Form1099Data {
   return { formType: '1099-DIV', ordinaryDividends, qualifiedDividends };
 }
 
+/**
+ * Find proceeds (Box 1d) and cost basis (Box 1e) within a section of lines,
+ * then compute gain = proceeds - cost basis.
+ * Returns the gain amount, or 0 if not found.
+ */
+function findProceedsAndBasis(lines: string[], sectionPattern: RegExp, boundaryPattern: RegExp): number {
+  // Find the section start
+  let sectionStart = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (sectionPattern.test(lines[i])) {
+      sectionStart = i;
+      break;
+    }
+  }
+  if (sectionStart === -1) return 0;
+
+  // Look for proceeds and cost basis, stopping at next section boundary or 30 lines
+  const maxEnd = Math.min(sectionStart + 30, lines.length);
+  let proceeds = 0;
+  let costBasis = 0;
+
+  for (let i = sectionStart; i < maxEnd; i++) {
+    const line = lines[i];
+
+    // Stop if we hit a different section (e.g., long-term while scanning short-term)
+    if (i > sectionStart && boundaryPattern.test(line)) break;
+
+    // Match proceeds (Box 1d or "Proceeds" label)
+    if (/box\s*1d\b|1d\s*proceeds|\bproceeds\b/i.test(line) && !/cost|basis/i.test(line)) {
+      const match = line.match(/\$?\d[\d,]*\.\d{2}/);
+      if (match) {
+        const val = parseCurrency(match[0]);
+        if (val > 0) proceeds = val;
+      } else if (i + 1 < maxEnd) {
+        const nextMatch = lines[i + 1].match(/\$?\d[\d,]*\.\d{2}/);
+        if (nextMatch) {
+          const val = parseCurrency(nextMatch[0]);
+          if (val > 0) proceeds = val;
+        }
+      }
+    }
+
+    // Match cost basis (Box 1e or "Cost" / "Basis" label)
+    if (/box\s*1e\b|1e\s*cost|cost\s*(or\s*other\s*)?basis|\bcost\b.*\bbasis\b/i.test(line)) {
+      const match = line.match(/\$?\d[\d,]*\.\d{2}/);
+      if (match) {
+        const val = parseCurrency(match[0]);
+        if (val > 0) costBasis = val;
+      } else if (i + 1 < maxEnd) {
+        const nextMatch = lines[i + 1].match(/\$?\d[\d,]*\.\d{2}/);
+        if (nextMatch) {
+          const val = parseCurrency(nextMatch[0]);
+          if (val > 0) costBasis = val;
+        }
+      }
+    }
+  }
+
+  if (proceeds > 0 && costBasis > 0) {
+    return Math.round((proceeds - costBasis) * 100) / 100;
+  }
+  return 0;
+}
+
 function parse1099B(lines: string[]): Form1099Data {
-  const shortTermCapGains = findAmountNearLabel(lines, [
-    /short[-\s]*term\s*(capital\s*)?(gain|proceeds|total)/i,
-    /short[-\s]*term/i,
+  // Primary: try direct capital gain amounts
+  let shortTermCapGains = findAmountNearLabel(lines, [
+    /short[-\s]*term\s*capital\s*gain/i,
   ]);
 
-  const longTermCapGains = findAmountNearLabel(lines, [
-    /long[-\s]*term\s*(capital\s*)?(gain|proceeds|total)/i,
-    /long[-\s]*term/i,
+  let longTermCapGains = findAmountNearLabel(lines, [
+    /long[-\s]*term\s*capital\s*gain/i,
   ]);
+
+  // Fallback 1: compute from proceeds - cost basis (IB-style 1099-B)
+  if (!shortTermCapGains) {
+    shortTermCapGains = findProceedsAndBasis(lines, /short[-\s]*term/i, /long[-\s]*term/i);
+  }
+  if (!longTermCapGains) {
+    longTermCapGains = findProceedsAndBasis(lines, /long[-\s]*term/i, /short[-\s]*term/i);
+  }
+
+  // Fallback 2: broad keyword match (simple forms with amounts near short/long-term labels)
+  if (!shortTermCapGains) {
+    shortTermCapGains = findAmountNearLabel(lines, [/short[-\s]*term/i]);
+  }
+  if (!longTermCapGains) {
+    longTermCapGains = findAmountNearLabel(lines, [/long[-\s]*term/i]);
+  }
 
   return { formType: '1099-B', shortTermCapGains, longTermCapGains };
 }

@@ -44,13 +44,54 @@ export async function pdfToImageBlob(file: File): Promise<Blob> {
 }
 
 /**
+ * Extract embedded text from all pages of a PDF using pdfjs.
+ * Returns concatenated text from all pages, or empty string if extraction fails.
+ */
+export async function extractPdfText(file: File): Promise<string> {
+  const pdfjsLib = await import('pdfjs-dist');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pageTexts: string[] = [];
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const content = await page.getTextContent();
+    const text = content.items
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((item: any) => (item.str as string) || '')
+      .join(' ');
+    pageTexts.push(text);
+  }
+
+  return pageTexts.join('\n');
+}
+
+/**
  * Run Tesseract OCR on a file (image or PDF).
- * If PDF, renders the first page to an image first.
+ * For PDFs, tries embedded text extraction first (all pages).
+ * Falls back to Tesseract OCR if no embedded text is found.
  */
 export async function performOcr(
   file: File,
   onProgress?: (progress: number) => void
 ): Promise<string> {
+  // For PDFs, try embedded text extraction first (covers all pages)
+  if (file.type === 'application/pdf') {
+    if (onProgress) onProgress(5);
+    try {
+      const embeddedText = await extractPdfText(file);
+      if (embeddedText.length > 100) {
+        if (onProgress) onProgress(100);
+        return embeddedText;
+      }
+    } catch (err) {
+      console.warn('PDF text extraction failed, falling back to OCR:', err);
+    }
+  }
+
+  // Fall back to Tesseract OCR
   let ocrInput: File | Blob = file;
 
   if (file.type === 'application/pdf') {
