@@ -90,7 +90,7 @@ export default function Form1099Upload({ onParsed }: Form1099UploadProps) {
         onClick={() => fileInputRef.current?.click()}
       >
         <p className="text-gray-600 text-sm font-medium">
-          Upload a 1099 form (INT, DIV, or B)
+          Upload a 1099 form (INT, DIV, B, or consolidated)
         </p>
         <p className="text-gray-400 text-xs mt-1">Drag & drop or click to browse (PNG, JPG, PDF)</p>
         <input

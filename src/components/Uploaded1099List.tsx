@@ -11,6 +11,7 @@ const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> 
   '1099-INT': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
   '1099-DIV': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
   '1099-B': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+  '1099-CONSOLIDATED': { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
 };
 
 function formatAmount(value: number | undefined): string {

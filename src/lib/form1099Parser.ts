@@ -7,28 +7,31 @@ import { parseCurrency, performOcr } from './ocrUtils';
 export function detectFormType(text: string): Form1099Type | null {
   const upper = text.toUpperCase();
 
-  // Check for specific form identifiers
-  if (/1099[-\s]*INT/i.test(text) || /INTEREST\s*INCOME/i.test(text)) {
-    return '1099-INT';
-  }
-  if (/1099[-\s]*DIV/i.test(text) || /DIVIDENDS\s*AND\s*DISTRIBUTIONS/i.test(text)) {
-    return '1099-DIV';
-  }
-  if (/1099[-\s]*B\b/i.test(text) || /PROCEEDS\s*FROM\s*BROKER/i.test(text)) {
-    return '1099-B';
-  }
+  const matchesINT =
+    /1099[-\s]*INT/i.test(text) ||
+    /INTEREST\s*INCOME/i.test(text) ||
+    upper.includes('INTEREST INCOME') ||
+    /BOX\s*1.*INTEREST/i.test(text);
 
-  // Fallback heuristics based on field labels
-  if (upper.includes('INTEREST INCOME') || /BOX\s*1.*INTEREST/i.test(text)) {
-    return '1099-INT';
-  }
-  if (upper.includes('ORDINARY DIVIDENDS') || upper.includes('QUALIFIED DIVIDENDS')) {
-    return '1099-DIV';
-  }
-  if (upper.includes('SHORT-TERM') || upper.includes('LONG-TERM') || upper.includes('PROCEEDS')) {
-    return '1099-B';
-  }
+  const matchesDIV =
+    /1099[-\s]*DIV/i.test(text) ||
+    /DIVIDENDS\s*AND\s*DISTRIBUTIONS/i.test(text) ||
+    upper.includes('ORDINARY DIVIDENDS') ||
+    upper.includes('QUALIFIED DIVIDENDS');
 
+  const matchesB =
+    /1099[-\s]*B\b/i.test(text) ||
+    /PROCEEDS\s*FROM\s*BROKER/i.test(text) ||
+    upper.includes('SHORT-TERM') ||
+    upper.includes('LONG-TERM');
+
+  const matched: Form1099Type[] = [];
+  if (matchesINT) matched.push('1099-INT');
+  if (matchesDIV) matched.push('1099-DIV');
+  if (matchesB) matched.push('1099-B');
+
+  if (matched.length >= 2) return '1099-CONSOLIDATED';
+  if (matched.length === 1) return matched[0];
   return null;
 }
 
@@ -109,6 +112,21 @@ function parse1099B(lines: string[]): Form1099Data {
   return { formType: '1099-B', shortTermCapGains, longTermCapGains };
 }
 
+function parse1099Consolidated(lines: string[]): Form1099Data {
+  const intData = parse1099INT(lines);
+  const divData = parse1099DIV(lines);
+  const bData = parse1099B(lines);
+
+  return {
+    formType: '1099-CONSOLIDATED',
+    interest: intData.interest || undefined,
+    ordinaryDividends: divData.ordinaryDividends || undefined,
+    qualifiedDividends: divData.qualifiedDividends || undefined,
+    shortTermCapGains: bData.shortTermCapGains || undefined,
+    longTermCapGains: bData.longTermCapGains || undefined,
+  };
+}
+
 /**
  * Parse OCR text into structured 1099 data.
  * Auto-detects the form type and extracts relevant fields.
@@ -126,6 +144,8 @@ export function parse1099Text(text: string): Form1099Data | null {
       return parse1099DIV(lines);
     case '1099-B':
       return parse1099B(lines);
+    case '1099-CONSOLIDATED':
+      return parse1099Consolidated(lines);
   }
 }
 
@@ -145,7 +165,7 @@ export async function ocr1099(
   const data = parse1099Text(rawText);
 
   if (!data) {
-    throw new Error('Could not detect 1099 form type. Please ensure you uploaded a 1099-INT, 1099-DIV, or 1099-B.');
+    throw new Error('Could not detect 1099 form type. Please ensure you uploaded a 1099-INT, 1099-DIV, 1099-B, or consolidated 1099.');
   }
 
   return { data, rawText };

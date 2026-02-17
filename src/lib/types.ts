@@ -65,7 +65,7 @@ export interface AMTResult {
   triggered: boolean;
 }
 
-export type Form1099Type = '1099-INT' | '1099-DIV' | '1099-B';
+export type Form1099Type = '1099-INT' | '1099-DIV' | '1099-B' | '1099-CONSOLIDATED';
 
 export interface Form1099Data {
   formType: Form1099Type;

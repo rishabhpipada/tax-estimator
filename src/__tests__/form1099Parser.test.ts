@@ -20,6 +20,19 @@ describe('detectFormType', () => {
   it('returns null for unrecognized text', () => {
     expect(detectFormType('Random unrelated document text')).toBeNull();
   });
+
+  it('detects consolidated when interest and dividends are present', () => {
+    expect(detectFormType('INTEREST INCOME\nOrdinary Dividends $500.00')).toBe('1099-CONSOLIDATED');
+  });
+
+  it('detects consolidated when all three types are present', () => {
+    const text = 'Form 1099-INT\nForm 1099-DIV\nShort-term capital gain $100.00';
+    expect(detectFormType(text)).toBe('1099-CONSOLIDATED');
+  });
+
+  it('still detects single type when only one section matches', () => {
+    expect(detectFormType('Form 1099-DIV Dividends and Distributions')).toBe('1099-DIV');
+  });
 });
 
 describe('parse1099Text', () => {
@@ -94,6 +107,42 @@ $8,910.11`;
       expect(result!.formType).toBe('1099-B');
       expect(result!.shortTermCapGains).toBe(2345.67);
       expect(result!.longTermCapGains).toBe(8910.11);
+    });
+  });
+
+  describe('1099-CONSOLIDATED', () => {
+    it('extracts interest, dividends, and capital gains from consolidated form', () => {
+      const text = `Consolidated 1099
+INTEREST INCOME
+Box 1 Interest Income $1,200.00
+Ordinary Dividends $3,400.00
+Qualified Dividends $1,500.00
+Short-term capital gain total $2,000.00
+Long-term capital gain total $7,500.00`;
+      const result = parse1099Text(text);
+      expect(result).not.toBeNull();
+      expect(result!.formType).toBe('1099-CONSOLIDATED');
+      expect(result!.interest).toBe(1200.00);
+      expect(result!.ordinaryDividends).toBe(3400.00);
+      expect(result!.qualifiedDividends).toBe(1500.00);
+      expect(result!.shortTermCapGains).toBe(2000.00);
+      expect(result!.longTermCapGains).toBe(7500.00);
+    });
+
+    it('extracts only present sections in consolidated form', () => {
+      const text = `Consolidated 1099
+INTEREST INCOME
+Box 1 $800.00
+1a Total ordinary dividends $2,000.00
+1b Qualified dividends $1,000.00`;
+      const result = parse1099Text(text);
+      expect(result).not.toBeNull();
+      expect(result!.formType).toBe('1099-CONSOLIDATED');
+      expect(result!.interest).toBe(800.00);
+      expect(result!.ordinaryDividends).toBe(2000.00);
+      expect(result!.qualifiedDividends).toBe(1000.00);
+      expect(result!.shortTermCapGains).toBeUndefined();
+      expect(result!.longTermCapGains).toBeUndefined();
     });
   });
 
